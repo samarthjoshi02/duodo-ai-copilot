@@ -2,8 +2,6 @@
 
 DUODO AI is a premium, AI-powered financial dashboard and copilot designed for modern investors. It leverages advanced Large Language Models (LLMs) via Featherless AI and real-time market data to provide institutional-grade sentiment analysis, risk assessment, and portfolio tracking in a stunning, highly responsive dark-mode UI.
 
-![DUODO AI Preview](https://via.placeholder.com/1200x600.png?text=DUODO+AI+Platform+Preview)
-
 ## ✨ Features
 
 - **AI Copilot (`/copilot`)**: A ChatGPT-like conversational assistant that provides deep financial insights, stock analysis, and risk factors using Featherless AI's LLaMA 3 8B Instruct model.
