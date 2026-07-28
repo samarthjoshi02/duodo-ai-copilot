@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = os.getenv("FIREBASE_PROJECT_ID", "")
     # Firebase credentials JSON path (optional, if using service account credentials)
     FIREBASE_CREDENTIALS_PATH: str = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+    # Firebase credentials raw JSON string (used for Render deployment)
+    FIREBASE_CREDENTIALS_JSON: str = os.getenv("FIREBASE_CREDENTIALS_JSON", "")
 
     # Auto-fallback controls
     @property
