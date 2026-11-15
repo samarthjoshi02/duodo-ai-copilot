@@ -55,13 +55,26 @@ class FeedbackRequest(BaseModel):
 
 # --- Endpoints ---
 
+# 0. Root Endpoint
+@app.get("/")
+def root():
+    return {
+        "app": settings.APP_NAME,
+        "version": "1.0.0",
+        "status": "online",
+        "documentation": "/docs",
+        "health_check": "/api/health"
+    }
+
 # 1. Health check
 @app.get("/api/health")
 def health_check():
+    ai_status = "Groq Active" if settings.GROQ_API_KEY else ("Featherless API Active" if settings.FEATHERLESS_API_KEY else "Mock AI")
+    db_status = "SQLite (Fallback/Local)" if db_service.is_sqlite else "PostgreSQL (Supabase)"
     return {
         "status": "healthy",
-        "database": "SQLite (Mock)" if settings.is_db_mocked else "PostgreSQL (Supabase)",
-        "ai": "Mock AI" if settings.is_ai_mocked else "Featherless API Active"
+        "database": db_status,
+        "ai": ai_status
     }
 
 # 2. User Authentication Syncing
