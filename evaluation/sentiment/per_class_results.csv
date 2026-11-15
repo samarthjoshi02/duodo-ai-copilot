@@ -1,0 +1,7 @@
+Model,Class,Precision,Recall,F1-Score,Support
+Baseline,Bearish,0.7619,0.4324,0.5517,37
+Baseline,Bullish,0.7368,0.4941,0.5915,85
+Baseline,Neutral,0.7523,0.9382,0.835,178
+Duodo Sentiment Engine,Bearish,0.875,0.9459,0.9091,37
+Duodo Sentiment Engine,Bullish,0.7802,0.8353,0.8068,85
+Duodo Sentiment Engine,Neutral,0.9053,0.8596,0.8818,178

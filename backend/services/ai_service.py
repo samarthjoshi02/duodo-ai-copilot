@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from openai import OpenAI
 from typing import List, Dict, Any
 from backend.config import settings
@@ -7,25 +8,43 @@ from backend.config import settings
 class AIService:
     def __init__(self):
         self.is_mocked = settings.is_ai_mocked
-        self.model_name = "mistralai/Mistral-7B-Instruct-v0.2" # Default non-gated model
         self.client = None
+        self.provider = "mock"
         
-        if not self.is_mocked:
+        if settings.GROQ_API_KEY:
+            try:
+                self.client = OpenAI(
+                    base_url="https://api.groq.com/openai/v1",
+                    api_key=settings.GROQ_API_KEY
+                )
+                self.model_name = "qwen/qwen3.8-27b"
+                self.provider = "groq"
+                self.is_mocked = False
+                print(f"Groq AI API Client Initialized with model {self.model_name}.")
+            except Exception as e:
+                print(f"Error configuring Groq API: {e}")
+                self.is_mocked = True
+        elif settings.FEATHERLESS_API_KEY:
             try:
                 self.client = OpenAI(
                     base_url="https://api.featherless.ai/v1",
                     api_key=settings.FEATHERLESS_API_KEY
                 )
+                self.model_name = "mistralai/Mistral-7B-Instruct-v0.2"
+                self.provider = "featherless"
+                self.is_mocked = False
                 print("Featherless AI API Client Initialized.")
             except Exception as e:
                 print(f"Error configuring Featherless API. Falling back to Mock: {e}")
                 self.is_mocked = True
         else:
-            print("Featherless API key not found. Starting in Mock AI Mode.")
+            self.model_name = "mock"
+            self.is_mocked = True
+            print("No external AI API key found. Starting in Mock AI Mode.")
 
     def analyze_news_sentiment(self, title: str, summary: str) -> Dict[str, Any]:
         """Analyzes sentiment and confidence score of a news article."""
-        if self.is_mocked:
+        if self.is_mocked or not self.client:
             return self._mock_news_sentiment(title)
 
         prompt = f"""
@@ -40,17 +59,26 @@ class AIService:
 
         Respond with ONLY the JSON object, no Markdown blocks or explanations.
         """
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1
-            )
-            clean_json = self._extract_json(response.choices[0].message.content)
-            if clean_json:
-                return clean_json
-        except Exception as e:
-            print(f"Featherless AI news sentiment error: {e}")
+        for attempt in range(3):
+            try:
+                kwargs = {
+                    "model": self.model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                }
+                if self.provider == "groq":
+                    kwargs["response_format"] = {"type": "json_object"}
+                response = self.client.chat.completions.create(**kwargs)
+                clean_json = self._extract_json(response.choices[0].message.content)
+                if clean_json and "sentiment" in clean_json:
+                    return clean_json
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    time.sleep(2.0 * (attempt + 1))
+                    continue
+                print(f"AI news sentiment error ({self.provider}): {e}")
+                break
         
         return self._mock_news_sentiment(title)
 

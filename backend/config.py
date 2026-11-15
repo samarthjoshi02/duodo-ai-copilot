@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # API Keys
     FEATHERLESS_API_KEY: str = os.getenv("FEATHERLESS_API_KEY", "")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     
     # Supabase PostgreSQL Database URL
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
@@ -32,6 +33,6 @@ class Settings(BaseSettings):
         
     @property
     def is_ai_mocked(self) -> bool:
-        return not self.FEATHERLESS_API_KEY
+        return not self.FEATHERLESS_API_KEY and not self.GROQ_API_KEY
 
 settings = Settings()
