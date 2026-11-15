@@ -1,14 +1,31 @@
 import os
 import sqlite3
-import psycopg2
-from psycopg2.extras import RealDictCursor
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    RealDictCursor = None
+
 from backend.config import settings
 
 class DBService:
     def __init__(self):
-        self.is_sqlite = settings.is_db_mocked
+        self.is_sqlite = settings.is_db_mocked or not PSYCOPG2_AVAILABLE
         self.sqlite_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "database", "duodo_local.db")
         os.makedirs(os.path.dirname(self.sqlite_path), exist_ok=True)
+        
+        # Test connection if postgres is configured; if unreachable, gracefully fallback to SQLite
+        if not self.is_sqlite:
+            try:
+                conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+                conn.close()
+                print("Connected to PostgreSQL successfully.")
+            except Exception as e:
+                print(f"[WARNING] PostgreSQL connection failed: {e}. Falling back to SQLite mode!")
+                self.is_sqlite = True
+
         self.init_db()
 
     def get_conn(self):
@@ -17,8 +34,15 @@ class DBService:
             conn.row_factory = sqlite3.Row
             return conn
         else:
-            conn = psycopg2.connect(settings.DATABASE_URL)
-            return conn
+            try:
+                conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+                return conn
+            except Exception as e:
+                print(f"[WARNING] PostgreSQL connection error: {e}. Falling back to SQLite.")
+                self.is_sqlite = True
+                conn = sqlite3.connect(self.sqlite_path)
+                conn.row_factory = sqlite3.Row
+                return conn
 
     def execute_query(self, query, params=None, commit=False, fetch_one=False, fetch_all=False):
         conn = self.get_conn()
@@ -142,17 +166,17 @@ class DBService:
             if os.path.exists(schema_path):
                 with open(schema_path, "r") as f:
                     schema_sql = f.read()
-                conn = self.get_conn()
                 try:
+                    conn = self.get_conn()
                     cursor = conn.cursor()
                     cursor.execute(schema_sql)
                     conn.commit()
+                    conn.close()
                     print("PostgreSQL Database Schema Synced.")
                 except Exception as e:
-                    print(f"Error executing schema.sql: {e}")
-                    conn.rollback()
-                finally:
-                    conn.close()
+                    print(f"[WARNING] Error executing schema.sql on PostgreSQL: {e}. Falling back to SQLite.")
+                    self.is_sqlite = True
+                    self.init_db()
 
     # --- Users Operations ---
     def sync_firebase_user(self, firebase_uid, email, name, photo):
